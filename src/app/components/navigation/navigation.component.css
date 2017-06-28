@@ -1,0 +1,8 @@
+.navigation {
+  z-index: 100;
+  position: absolute;
+  top: 50px;
+  width: 50px;
+  height: calc(100% - 50px);
+  background-color: lightseagreen;
+}

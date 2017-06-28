@@ -1,0 +1,10 @@
+.content {
+  z-index: inherit;
+  position: absolute;
+  top: 50px;
+  left: 50px;
+  width: 100%;
+  height: calc(100% - 50px);
+  width: calc(100% - 50px);
+  background-color: gray;
+}
