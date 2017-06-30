@@ -4,4 +4,15 @@
   height: 50px;
   width: 100%;
   background-color: aquamarine;
+  display: flex;
+}
+.header .title {
+  flex: auto;
+  font-family: 'Great Vibes', cursive;
+  color: black;
+  font-size: 30px;
+  line-height: 50px;
+  text-align: center;
+  letter-spacing: .15em;
+  user-select: none;
 }

@@ -1,0 +1,29 @@
+:host {
+  position: relative;
+  display: inline-block;
+  border: 1px solid black;
+  background-color: darkgray;
+}
+:host .ml-resizable {
+  height: 100%;
+  width: 100%;
+}
+:host .ml-resizable .ml-resize-icon {
+  opacity: 1;
+  height: inherit;
+  width: inherit;
+  background-image: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAMAAABg3Am1AAAABlBMVEUAAAAAAAClZ7nPAAAAAXRSTlMAQObYZgAAAChJREFUeAFjGKpgFIyCUTAKGIFgEGoYUeEPowehhhEU/gh6MGoYJgAA1LAAYWIWamIAAAAASUVORK5CYII=);
+  background-position: bottom right;
+  background-repeat: no-repeat;
+  transition: opacity 1s;
+}
+:host .ml-resizable.resize {
+  background-color: #8c8c8c;
+  box-shadow: inset 0px 0px 46px -14px;
+  border: 2px dashed #E4E4E4;
+  box-sizing: border-box;
+  background-image: none;
+}
+:host .ml-resizable.resize .ml-resize-icon {
+  opacity: 0;
+}
