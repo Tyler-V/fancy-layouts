@@ -1,4 +1,4 @@
-<div class="ml-resizable" mlResize [minimumHeight]="50" [minimumWidth]="50" (resize)="resize($event)">
+<div class="ml-resizable" mlResize [minimumHeight]="50" [minimumWidth]="50" (resize)="resize($event)" mlMove (move)="move($event)" [parentContainer]="el.nativeElement.parentElement">
     <div class="ml-resize-icon"></div>
     <ng-content></ng-content>
 </div>

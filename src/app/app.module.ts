@@ -9,6 +9,7 @@ import { NavigationComponent } from './components/navigation/navigation.componen
 import { ContentComponent } from './components/content/content.component';
 import { ContainerComponent } from './components/container/container.component';
 import { ResizeDirective } from './directives/resize.directive';
+import { MoveDirective } from './directives/move.directive';
 
 @NgModule({
   declarations: [
@@ -17,7 +18,8 @@ import { ResizeDirective } from './directives/resize.directive';
     NavigationComponent,
     ContentComponent,
     ContainerComponent,
-    ResizeDirective
+    ResizeDirective,
+    MoveDirective
   ],
   imports: [
     BrowserModule

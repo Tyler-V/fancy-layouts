@@ -1,7 +1,13 @@
-# modular-layout
+## Modular Layout a resizable, moveable box themed layout that features three different layout styles
 
-# Visual studio Extensions
-Angular Language Service
-Easy LESS
-JS-CSS-HTML Formatter
-Stylesheet Formatter
+> fixed
+
+> flex
+
+> fluid
+
+## Visual Studio Code Extensions
+- Angular Language Service
+- Easy LESS
+- JS-CSS-HTML Formatter
+- Stylesheet Formatter
