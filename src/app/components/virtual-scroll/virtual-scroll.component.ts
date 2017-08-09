@@ -3,7 +3,7 @@ import {
     ViewChild, ElementRef,
     Input, Output, EventEmitter,
     OnChanges, OnDestroy, OnInit,
-    Renderer,
+    Renderer2,
     SimpleChanges,
     HostBinding,
     HostListener
@@ -41,10 +41,10 @@ export class VirtualScrollComponent implements OnInit {
     @Input() dragInsideContainer: boolean = true; // Restricts transit layer to remain inside the container
     @Input() verticalDrag: boolean = true; // Allows dragging the transit layer vertically
     @Input() horizontalDrag: boolean = false; // Allows dragging the transit layer horizontally
-    @Input() minimumDropPrecision: number = 85.0; // Percent allowable to be considered dropping an item on another item (Default: 85.0%)
 
     @Output() onUpdate: EventEmitter<Index> = new EventEmitter<Index>();
     @Output() dragStart: EventEmitter<Index> = new EventEmitter<Index>();
+    @Output() dragging: EventEmitter<Index> = new EventEmitter<Index>();
     @Output() dragEnd: EventEmitter<Index> = new EventEmitter<Index>();
 
     @ViewChild('transit') transit: ElementRef;
@@ -88,11 +88,11 @@ export class VirtualScrollComponent implements OnInit {
     public index: Index;
     private onStart: boolean = true;
 
-    constructor(private elementRef: ElementRef, private renderer: Renderer) { }
+    constructor(public elementRef: ElementRef, private renderer2: Renderer2) { }
 
     ngOnInit() {
-        this.onScrollListener = this.renderer.listen(this.elementRef.nativeElement, 'scroll', this.refresh.bind(this));
-        this.onDragStartListener = this.renderer.listen(this.contentElementRef.nativeElement, 'touchstart', (e) => this.onDragStart(e));
+        this.onScrollListener = this.renderer2.listen(this.elementRef.nativeElement, 'scroll', this.refresh.bind(this));
+        this.onDragStartListener = this.renderer2.listen(this.contentElementRef.nativeElement, 'touchstart', (e) => this.onDragStart(e));
     }
 
 
@@ -120,14 +120,19 @@ export class VirtualScrollComponent implements OnInit {
             }
             this.originalElement = this.originalElement.parentElement;
         }
-
         this.cssText = this.originalElement.style.cssText;
-        this.renderer.setElementStyle(this.originalElement, 'box-shadow', 'inset 0 20px 10px -20px rgba(0,0,0,0.8)');
-        this.renderer.setElementStyle(this.originalElement, 'background-color', '#D7D7D7');
-        this.renderer.setElementStyle(this.dragElement, 'position', 'absolute');
-        this.renderer.setElementStyle(this.dragElement, 'width', 'inherit');
-        this.renderer.setElementStyle(this.dragElement, "box-shadow", "0px 7px 7px -4px rgba(0, 0, 0, 0.5)");
+
+        this.renderer2.addClass(this.originalElement, 'vs-drag-source');
+        this.renderer2.setStyle(this.originalElement, 'box-shadow', 'inset 0 20px 10px -20px rgba(0,0,0,0.8)');
+        this.renderer2.setStyle(this.originalElement, 'background-color', '#D7D7D7');
+
+        this.renderer2.addClass(this.dragElement, 'vs-drag-transit');
+        this.renderer2.setStyle(this.dragElement, 'position', 'absolute');
+        this.renderer2.setStyle(this.dragElement, 'width', 'inherit');
+        this.renderer2.setStyle(this.dragElement, "box-shadow", "0px 7px 7px -4px rgba(0, 0, 0, 0.5)");
+
         this.transit.nativeElement.appendChild(this.dragElement);
+
         this.initialOffsetX = this.lastTouch.clientX - $(this.originalElement).offset().left;
         this.initialOffsetY = this.lastTouch.clientY - $(this.originalElement).offset().top;
         this.drag();
@@ -138,9 +143,9 @@ export class VirtualScrollComponent implements OnInit {
         this.dragStart.emit(this.reorderIndex);
 
         this.removeTouchListeners();
-        this.onDraggingListener = this.renderer.listen(e.target, 'touchmove', (e) => { this.onDragMove(e); });
-        this.onDragEndListener = this.renderer.listen(e.target, 'touchend', (e) => { this.onDragEnd(e); });
-        this.onDragCancelListener = this.renderer.listen(e.target, 'touchcancel', (e) => { this.onDragEnd(e); });
+        this.onDraggingListener = this.renderer2.listen(e.target, 'touchmove', (e) => { this.onDragMove(e); });
+        this.onDragEndListener = this.renderer2.listen(e.target, 'touchend', (e) => { this.onDragEnd(e); });
+        this.onDragCancelListener = this.renderer2.listen(e.target, 'touchcancel', (e) => { this.onDragEnd(e); });
 
         this.dragInterval = setInterval(() => {
             this.onDragging();
@@ -152,6 +157,8 @@ export class VirtualScrollComponent implements OnInit {
         if (!this.isDragging) return;
         this.lastTouch = this.getPoint(e);
         this.drag();
+        this.getDropIndex(this.getPoint(e));
+        this.dragging.emit(this.reorderIndex);
         event.preventDefault();
     }
 
@@ -186,14 +193,20 @@ export class VirtualScrollComponent implements OnInit {
      * 
      * @param index {number} - index to scroll to
      * @param size {number} - optional size in the event row height is known but size is not
+     * @param allowScrollDown {boolean} - optional, allow scrolling down direction
      */
-    public scrollToIndex(index: number, size?: number) {
+    public scrollToIndex(index: number, size?: number, allowScrollDown?: boolean) {
         let containerHeight = this.elementRef.nativeElement.clientHeight;
         let contentHeight = !size ? size * this.rowHeight : this.size;
 
         let scrollTop = index * this.rowHeight - (containerHeight - this.rowHeight);
-        if (scrollTop < 0 || scrollTop > contentHeight)
+
+        if (allowScrollDown) {
+            scrollTop = scrollTop + contentHeight;
+        }
+        else if (scrollTop < 0 || scrollTop > contentHeight) {
             scrollTop = 0;
+        }
 
         jQuery(this.elementRef.nativeElement).animate({
             scrollTop: scrollTop
@@ -243,8 +256,10 @@ export class VirtualScrollComponent implements OnInit {
             let childHeight = this.rowHeight;
             this.scrollHeight = this.rowHeight * size;
 
+            let isScrolledPastBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 0;
+
             //If scroll is above the top, (iOS overscroll), then do not emit any changes
-            if (el.scrollTop > 0 && el.scrollTop > ((this.rowHeight * this.size) - contentHeight)) {
+            if (el.scrollTop > 0 && isScrolledPastBottom) {
                 this.onUpdate.emit(null);
                 return;
             }
@@ -342,33 +357,36 @@ export class VirtualScrollComponent implements OnInit {
         let offsetClientY = this.lastTouch.clientY - this.initialOffsetY - this.scrollContainerTop;
         if (this.dragInsideContainer) {
             if (offsetClientY <= 0) {
-                this.renderer.setElementStyle(this.dragElement, 'top', '0px');
+                this.renderer2.setStyle(this.dragElement, 'top', '0px');
                 return;
             }
             else if (offsetClientY - (this.scrollContainerHeight - this.rowHeight) >= 0) {
-                this.renderer.setElementStyle(this.dragElement, 'top', (this.scrollContainerHeight - this.rowHeight) + 'px');
+                this.renderer2.setStyle(this.dragElement, 'top', (this.scrollContainerHeight - this.rowHeight) + 'px');
                 return;
             }
         }
         if (this.horizontalDrag)
-            this.renderer.setElementStyle(this.dragElement, 'left', offsetClientX + 'px');
+            this.renderer2.setStyle(this.dragElement, 'left', offsetClientX + 'px');
         if (this.verticalDrag)
-            this.renderer.setElementStyle(this.dragElement, 'top', offsetClientY + 'px');
+            this.renderer2.setStyle(this.dragElement, 'top', offsetClientY + 'px');
     }
 
     private removeDragElement() {
         while (this.transit.nativeElement.firstChild)
             this.transit.nativeElement.removeChild(this.transit.nativeElement.firstChild);
+        this.renderer2.removeClass(this.originalElement, 'vs-drag-source');
+        this.renderer2.removeClass(this.dragElement, 'vs-drag-transit');
         this.dragElement = null;
         this.originalElement = null;
     }
 
     private getDropIndex(point: any): void {
         if (!this.dragElement) return;
-        let dragElementOffsetTop = $(this.dragElement).offset().top;
-        let dragElementCenterY = dragElementOffsetTop + (this.rowHeight / 2);
-        let dragElementClientX = this.getDragElementClientX();
-        let elements = this.elementsFromPoint(dragElementClientX, dragElementCenterY);
+
+        let dragOffsetTop = $(this.dragElement).offset().top;
+        let dragCenterY = dragOffsetTop + (this.rowHeight / 2);
+        let dragClientX = this.getDragElementClientX();
+        let elements = this.elementsFromPoint(dragClientX, dragCenterY);
 
         let target;
         for (let el of elements) {
@@ -383,19 +401,21 @@ export class VirtualScrollComponent implements OnInit {
             return;
         }
 
+        // The row that the reordered row is dropped on
         this.reorderIndex.target = Array.from(this.contentElementRef.nativeElement.children).indexOf(target) + this.index.start;
 
-        let targetOffsetCenterY = $(target).offset().top + (this.rowHeight / 2) - this.scrollContainerTop;
-        let dragElementOffsetCenterY = dragElementOffsetTop + (this.rowHeight / 2) - this.scrollContainerTop;
-        if (dragElementOffsetCenterY > targetOffsetCenterY)
-            this.reorderIndex.end = this.reorderIndex.target + 1;
+        let targetOffsetTop = $(target).offset().top
+        let targetOffsetCenterY = targetOffsetTop + (this.rowHeight / 2) - this.scrollContainerTop;
+        let dragOffsetCenterY = dragOffsetTop + (this.rowHeight / 2) - this.scrollContainerTop;
+        
+        if (dragOffsetCenterY > targetOffsetCenterY)
+            this.reorderIndex.end = Math.min(this.reorderIndex.target + 1, this.size - 1);
 
-        let dropDistance = Math.abs(targetOffsetCenterY - dragElementOffsetCenterY);
-        let percent = Math.round((100 - ((dropDistance / this.rowHeight) * 100)) * 10) / 10;
-        if (percent >= this.minimumDropPrecision) {
-            this.reorderIndex.droppedOnTarget = true;
-            this.reorderIndex.dropPrecision = percent;
-        }
+        // Distance between center points of target and reordered element
+        let distance = Math.abs(targetOffsetCenterY - dragOffsetCenterY);
+        let percent = Math.round((100 - ((distance / this.rowHeight) * 100)) * 10) / 10;
+        this.reorderIndex.targetAccuracy = percent;
+
         this.reorderIndex.end = this.reorderIndex.end == null ? this.reorderIndex.target : this.reorderIndex.end;
     }
 
@@ -431,14 +451,21 @@ export class VirtualScrollComponent implements OnInit {
     }
 }
 
+/**
+ * first: the first visible row.
+ * last: the last visible row.
+ * start: the start index of the virtual array of an array of items. (This is the start of your array splice)
+ * end: the end index of the virtual array of an array of items. (This is the end of your array splice)
+ * target: the index in the virtual array that the reordered row is over.
+ * targetAccuracy: the % accuracy that the reordered row is over the target row. (100% is directly over, 90% is 10% up or down from the center of the row.)
+ */
 export interface Index {
     first?: number; // Visible
     last?: number; // Visible
     start?: number; // Array Index
     end?: number; // Array Index
     target?: number; // Target Index
-    droppedOnTarget?: boolean;
-    dropPrecision?: number; // Percent
+    targetAccuracy?: number; // Percent
 }
 
 export enum Direction {
